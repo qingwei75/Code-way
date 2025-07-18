@@ -1,0 +1,457 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+
+```{r}
+# 載入必要的套件
+library(reshape2)
+library(ggplot2)
+library(ggsignif)
+library(emmeans)
+
+# 讀取數據
+data <- read.csv("學習成效 - 分環境.csv")
+
+# 數據從寬格式轉換為長格式
+long_data <- melt(data, id.vars = "ID", variable.name = "Environment", value.name = "Score")
+
+long_data$Environment <- factor(long_data$Environment, levels = c("Block", "Code.way", "Text"),
+                                labels = c("BT", "CT", "TT"))
+
+# 使用aov進行重複測量的ANOVA分析
+fit <- aov(Score ~ Environment + Error(ID/Environment), data = long_data)
+
+# 輸出ANOVA結果
+print(summary(fit))
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(fit, specs = "Environment")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 生成箱形圖比較不同環境的成績
+ggplot(long_data, aes(x = Environment, y = Score)) +
+  geom_boxplot(aes(fill = Environment), alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  labs(x = "Condition", y = "Score") +
+  scale_x_discrete(labels = function(x) gsub("\\.", "-", x)) + 
+   # 使用漂亮的填充顏色
+  scale_fill_brewer(palette = "Set2") +
+  geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(16.2, 17.5, 19.5),
+              map_signif_level = TRUE)+
+    # 設置主題和樣式
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 14),
+    axis.title.x = element_text(margin = margin(t = 10, unit = "pt")),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.background = element_blank()
+  ) +
+  scale_y_continuous(limits = c(0, 22))
+
+
+
+```
+
+```{r}
+# 載入必要的套件
+library(reshape2)
+library(ggplot2)
+library(ggsignif)
+library(emmeans)
+library(dplyr)
+
+# 讀取數據
+data <- read.csv("學習成效 - 分環境.csv")
+
+# 數據從寬格式轉換為長格式
+long_data <- melt(data, id.vars = "ID", variable.name = "Environment", value.name = "Score")
+
+long_data$Environment <- factor(long_data$Environment, levels = c("Block", "Code.way", "Text"),
+                                labels = c("Block-based", "Code-way", "Text-based"))
+
+# 使用aov進行一元ANOVA分析
+fit <- aov(Score ~ Environment, data = long_data)
+
+# 輸出ANOVA結果
+print(summary(fit))
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(fit, specs = "Environment")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+# 生成箱形圖比較不同環境的成績
+ggplot(long_data, aes(x = Environment, y = Score)) +
+  geom_boxplot(aes(fill = Environment), alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  labs(x = "Initial Programming Environment", y = "Score") +
+  scale_x_discrete(labels = function(x) gsub("\\.", "-", x)) + 
+   # 使用漂亮的填充顏色
+  scale_fill_brewer(palette = "Set2") +
+  geom_signif(comparisons = list(c("Block-based", "Code-way"), c("Block-based", "Text-based"), c("Code-way", "Text-based")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(16, 17.5, 19.5),
+              map_signif_level = TRUE) +
+    # 設置主題和樣式
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title.x = element_text(margin = margin(t = 10, unit = "pt")),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.background = element_blank()
+  ) +
+  scale_y_continuous(limits = c(0, 22))
+
+# 計算每個環境的描述性統計
+summary_stats <- long_data %>%
+  group_by(Environment) %>%
+  summarise(
+    M = mean(Score, na.rm = TRUE),
+    SD = sd(Score, na.rm = TRUE)
+  )
+
+print(summary_stats)
+
+```
+
+
+
+```{r}
+# 載入所需的套件
+library(dplyr)
+library(ggplot2)
+
+# 讀取 CSV 檔案
+env_scores <- read.csv("學習成效 - 分環境.csv", fileEncoding = "big5")
+click_counts <- read.csv("學習成效 - 點擊次數.csv", fileEncoding = "big5")
+
+# 合併資料集，依據 ID 欄位
+merged_data <- merge(env_scores, click_counts, by = "ID", suffixes = c("_score", "_click"))
+
+# 檢查 merged_data 的行數，確保我們根據這個行數來分配 environment
+n_rows <- nrow(merged_data)
+
+# 生成對應行數的 environment 標籤
+# 假設環境分別為 Block、Text 和 Code-way，每個環境包含相同數量的資料
+# 請根據您實際的資料結構調整
+environment_labels <- rep(c("Block", "Text", "Code-way"), length.out = n_rows)
+
+# 將 environment 標籤加入 merged_data
+merged_data$environment <- factor(environment_labels)
+
+# 單因素ANOVA分析：學習環境對學習點擊數的影響
+block_aov <- aov(Block_click ~ environment, data = merged_data)
+summary(block_aov)
+
+# 雙因子ANOVA分析：學習環境和學習經驗的交互作用
+block_experience_aov <- aov(Block_click ~ environment * experience, data = merged_data)
+summary(block_experience_aov)
+
+# Text 環境的ANOVA分析：學習環境和學習經驗的交互作用
+text_experience_aov <- aov(Text_click ~ environment * experience, data = merged_data)
+summary(text_experience_aov)
+
+# Code-way 環境的ANOVA分析：學習環境和學習經驗的交互作用
+codeway_experience_aov <- aov(Code.way_click ~ environment * experience, data = merged_data)
+summary(codeway_experience_aov)
+
+
+```
+
+```{r}
+# 擷取回歸模型的殘差
+block_lm_exp <- lm(Block_click ~ Block_score + experience, data = merged_data)
+
+# 繪製QQ圖
+qqnorm(residuals(block_lm_exp))  # 提取並繪製殘差的QQ圖
+qqline(residuals(block_lm_exp), col = "red")  # 添加正態線
+
+# 擷取回歸模型的殘差
+text_lm_exp <- lm(Text_click ~ Text_score + experience, data = merged_data)
+
+# 繪製QQ圖
+qqnorm(residuals(text_lm_exp))  # 提取並繪製殘差的QQ圖
+qqline(residuals(text_lm_exp), col = "red")  # 添加正態線
+
+# 擷取回歸模型的殘差
+codeway_lm_exp <- lm(Code.way_click ~ Code.way_score + experience, data = merged_data)
+
+# 繪製QQ圖
+qqnorm(residuals(codeway_lm_exp))  # 提取並繪製殘差的QQ圖
+qqline(residuals(codeway_lm_exp), col = "red")  # 添加正態線
+```
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# 讀取 CSV 檔案
+env_scores <- read.csv("學習成效 - 分環境.csv", fileEncoding = "big5")
+click_counts <- read.csv("學習成效 - 點擊次數.csv", fileEncoding = "big5")
+# 合併資料集，依據 ID 欄位
+merged_data <- merge(env_scores, click_counts, by = "ID", suffixes = c("_score", "_click"))
+
+# 計算 Block 環境的相關係數與 p 值
+block_test <- cor.test(merged_data$Block_score, merged_data$Block_click, method = "pearson")
+block_correlation <- block_test$estimate
+block_p_value <- block_test$p.value
+print(paste("Block environment score-click correlation:", block_correlation))
+print(paste("Block environment p-value:", block_p_value))
+
+# 計算 Text 環境的相關係數與 p 值
+text_test <- cor.test(merged_data$Text_score, merged_data$Text_click, method = "pearson")
+text_correlation <- text_test$estimate
+text_p_value <- text_test$p.value
+print(paste("Text environment score-click correlation:", text_correlation))
+print(paste("Text environment p-value:", text_p_value))
+
+# 計算 Code-way 環境的相關係數與 p 值
+codeway_test <- cor.test(merged_data$Code.way_score, merged_data$Code.way_click, method = "pearson")
+codeway_correlation <- codeway_test$estimate
+codeway_p_value <- codeway_test$p.value
+print(paste("Code-way environment score-click correlation:", codeway_correlation))
+print(paste("Code-way environment p-value:", codeway_p_value))
+
+
+```
+
+
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+
+# Read the datasets
+learning_scores <- read.csv("學習成效 - 分環境.csv", fileEncoding = "big5")
+clicks <- read.csv("學習成效 - 點擊次數.csv", fileEncoding = "big5")
+
+# Merge the datasets based on the ID column
+merged_data <- merge(learning_scores, clicks, by="ID", suffixes=c(".score", ".click"))
+
+# Calculate correlations for each environment
+cor_block <- cor(merged_data$Block.score, merged_data$Block.click)
+cor_text <- cor(merged_data$Text.score, merged_data$Text.click)
+cor_codeway <- cor(merged_data$Code.way.score, merged_data$Code.way.click)
+
+# Print correlations
+print(paste("Correlation in Block environment:", cor_block))
+print(paste("Correlation in Text environment:", cor_text))
+print(paste("Correlation in Code-way environment:", cor_codeway))
+
+# Plot the relationships
+# Block-based environment plot
+ggplot(merged_data, aes(x=Block.score, y=Block.click)) +
+      geom_point() +
+      geom_smooth(method="lm") +
+      labs(
+            x = "Block-based Score",
+            y = "Block-based Clicks"
+      ) +
+      ggtitle(paste("Correlation between Score and Clicks in Block-based Environment"))
+
+# Text-based environment plot
+ggplot(merged_data, aes(x=Text.score, y=Text.click)) +
+      geom_point() +
+      geom_smooth(method="lm") +
+      labs(
+            x = "Text-based Score",
+            y = "Text-based Clicks"
+      ) +
+      ggtitle(paste("Correlation between Score and Clicks in Text-based Environment"))
+
+# Code-way environment plot
+ggplot(merged_data, aes(x=Code.way.score, y=Code.way.click)) +
+      geom_point() +
+      geom_smooth(method="lm") +
+      labs(
+            x = "Code-way Score",
+            y = "Code-way Clicks"
+      ) +
+      ggtitle(paste("Correlation between Score and Clicks in Code-way Environment"))
+
+
+
+```
+
+
+
+```{r}
+# 1. 加載必要的包
+library(ggplot2)
+library(dplyr)
+
+# 2. 讀取資料
+# 請將檔案路徑改為你的實際檔案路徑
+env_data <- read.csv("學習成效 - 分環境.csv", fileEncoding = "big5")
+click_data <- read.csv("學習成效 - 點擊次數.csv", fileEncoding = "big5")
+
+# 3. 合併資料
+data <- merge(env_data, click_data, by = "ID", suffixes = c("_score", "_clicks"))
+
+# 4. 篩選相關欄位
+data <- data %>%
+  select(ID, Code.way_score, Code.way_clicks, experience) %>%
+  mutate(experience = factor(experience, levels = c("無經驗", "一些經驗", "有經驗")))
+
+# 5. 計算相關係數
+correlation <- cor(data$Code.way_score, data$Code.way_clicks)
+print(paste("分數與點擊次數的皮爾森相關係數:", round(correlation, 2)))
+
+# 6. 建立多元回歸模型
+model <- lm(Code.way_score ~ Code.way_clicks + experience, data = data)
+summary(model)  # 顯示回歸模型摘要
+
+# 7. 繪製回歸圖並限制 y 軸
+ggplot(data, aes(x = Code.way_clicks, y = Code.way_score, color = experience)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    title = "Code-way 分數與點擊次數的關係 (考慮編程經驗)",
+    x = "點擊次數",
+    y = "分數"
+  ) +
+  ylim(0,20) +  # 限制 y 軸範圍
+  theme_minimal()
+
+
+```
+
+```{r}
+# 載入必要的函式庫
+library(ggplot2)
+
+# 讀取數據集
+experience <- read.csv("學習成效 - 分環境.csv", fileEncoding = "big5")
+clicks <- read.csv("學習成效 - 點擊次數.csv", fileEncoding = "big5")
+
+# 假設學習經驗數據也在學習成效文件中
+# 如果學習經驗在不同文件，需要進行類似的合併操作
+
+# 根據 ID 列合併數據集
+merged_data <- merge(experience, clicks, by="ID", suffixes=c(".score", ".click"))
+
+# 加入學習經驗變數，假設它也已經是數據框的一部分
+
+# 繪製關係圖，並以學習經驗作為顏色分層
+p1 <- ggplot(merged_data, aes(x=Block.score, y=Block.click, color=factor(experience))) +
+      geom_point() +
+      geom_smooth(method="lm") +
+      ggtitle("方塊環境下學習分數與點擊次數的相關性") +
+      labs(color="學習經驗")
+
+p2 <- ggplot(merged_data, aes(x=Text.score, y=Text.click, color=factor(experience))) +
+      geom_point() +
+      geom_smooth(method="lm") +
+      ggtitle("文字環境下學習分數與點擊次數的相關性") +
+      labs(color="學習經驗")
+
+p3 <- ggplot(merged_data, aes(x=Code.way.score, y=Code.way.click, color=factor(experience))) +
+      geom_point() +
+      geom_smooth(method="lm") +
+      ggtitle("程式碼方式環境下學習分數與點擊次數的相關性") +
+      labs(color="學習經驗")
+
+# 顯示圖形
+print(p1)
+print(p2)
+print(p3)
+
+```
+
+```{r}
+# 載入必要的套件
+library(reshape2)
+library(ggplot2)
+library(ggsignif)
+library(emmeans)
+
+# 讀取數據
+data <- read.csv("學習成效 - 分環境.csv")
+
+# 數據從寬格式轉換為長格式
+long_data <- melt(data, id.vars = "ID", variable.name = "Environment", value.name = "Score")
+
+long_data$Environment <- factor(long_data$Environment, levels = c("Block", "Code.way", "Text"),
+                                labels = c("Block-based", "Code-way", "Text-based"))
+
+# 使用 aov 進行單因子ANOVA分析
+fit <- aov(Score ~ Environment, data = long_data)
+
+# 輸出ANOVA結果
+print(summary(fit))
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(fit, specs = "Environment")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value
+
+# 生成箱形圖比較不同環境的成績
+ggplot(long_data, aes(x = Environment, y = Score)) +
+  geom_boxplot(aes(fill = Environment), alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  labs(x = "Initial Programming Environment", y = "Score") +
+  scale_x_discrete(labels = function(x) gsub("\\.", "-", x)) + 
+  # 使用漂亮的填充顏色
+  scale_fill_brewer(palette = "Set2") +
+  geom_signif(comparisons = list(c("Block-based", "Code-way"), c("Block-based", "Text-based"), c("Code-way", "Text-based")),
+              annotations = ifelse(p_values < 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                         ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(16.2, 17.5, 19.5),
+              map_signif_level = TRUE) +
+  # 設置主題和樣式
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title.x = element_text(margin = margin(t = 10, unit = "pt")),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.background = element_blank()
+  ) +
+  scale_y_continuous(limits = c(0, 22))
+
+# 計算每個環境的摘要統計
+summary_stats <- long_data %>%
+  group_by(Environment) %>%
+  summarise(
+    M = mean(Score, na.rm = TRUE),
+    SD = sd(Score, na.rm = TRUE)
+  )
+
+print(summary_stats)
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
