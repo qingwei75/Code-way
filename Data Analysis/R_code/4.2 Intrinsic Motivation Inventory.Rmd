@@ -1,0 +1,198 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+# Load necessary libraries
+library(tidyverse)  # For data manipulation and visualization
+library(reshape2)   # For reshaping data
+library(nlme)       # For fitting mixed-effects models
+library(emmeans)    # For post-hoc tests
+library(ggsignif)
+
+# Load the data
+data <- read.csv("newimi.csv")
+
+# Check the first few rows of the data to understand its structure
+print(head(data))
+
+```
+
+
+```{r}
+# Ensure 'platform' is treated as a factor
+data$platform <- as.factor(data$platform)
+
+# Check the levels of platform to ensure correctness
+print(levels(data$platform))
+
+# Conduct the ANOVA
+results <- aov(interest_enjoyment ~ platform + Error(ID/platform), data = data)
+summary(results)
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "platform")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value
+
+# 生成箱形圖比較不同環境的成績
+p11 <- ggplot(data, aes(x = platform, y = interest_enjoyment)) +
+  geom_boxplot(aes(fill = platform), alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  labs(title = "(a) Interest / Enjoyment Score",fill = "Condition") +
+  scale_x_discrete(labels = c("Block-based" = "BT",
+                            "Code-way" = "CT",
+                            "Text-based" = "TT"))+ 
+   scale_fill_manual(
+  values = c("Block-based" = "#66c2a5",   # Set2 的綠色
+             "Code-way" = "#fc8d62",      # Set2 的橘色
+             "Text-based" = "#8da0cb"),   # Set2 的藍色
+  labels = c("Block-based" = "BT",
+             "Code-way" = "CT",
+             "Text-based" = "TT"))+
+   # 使用漂亮的填充顏色
+  #scale_fill_brewer(palette = "Set2") +
+  geom_signif(comparisons = list(c("Block-based", "Code-way"), c("Block-based", "Text-based"), c("Code-way", "Text-based")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.2),
+              map_signif_level = TRUE)+
+    # 設置主題和樣式
+  theme_classic() +
+  theme(#plot.title = element_text(hjust = 0.5, size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.y = element_text(size = 18), # 設置 Y 軸標籤字體大小
+        axis.title.x = element_text(size = 18), # 設置 X 軸標籤字體大小
+        legend.position = "none") +
+  scale_y_continuous(limits = c(0, 10))
+
+```
+```{r}
+# Ensure 'platform' is treated as a factor
+data$platform <- as.factor(data$platform)
+
+# Check the levels of platform to ensure correctness
+print(levels(data$platform))
+
+# Conduct the ANOVA
+results <- aov(pressure_tension ~ platform + Error(ID/platform), data = data)
+summary(results)
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "platform")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value
+
+# 生成箱形圖比較不同環境的成績
+p22 <- ggplot(data, aes(x = platform, y = pressure_tension)) +
+  geom_boxplot(aes(fill = platform), alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  labs(title = "(c) Pressure / Tension Score", fill = "Condition") +
+  scale_x_discrete(labels = c("Block-based" = "BT",
+                            "Code-way" = "CT",
+                            "Text-based" = "TT"))+ 
+   scale_fill_manual(
+  values = c("Block-based" = "#66c2a5",   # Set2 的綠色
+             "Code-way" = "#fc8d62",      # Set2 的橘色
+             "Text-based" = "#8da0cb"),   # Set2 的藍色
+  labels = c("Block-based" = "BT",
+             "Code-way" = "CT",
+             "Text-based" = "TT"))+
+   # 使用漂亮的填充顏色
+  #scale_fill_brewer(palette = "Set2") +
+  geom_signif(comparisons = list(c("Block-based", "Code-way"), c("Block-based", "Text-based"), c("Code-way", "Text-based")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.2),
+              map_signif_level = TRUE)+
+    # 設置主題和樣式
+  theme_classic() +
+ theme(plot.title = element_text(hjust = 0.5, size = 14),
+        axis.title.y = element_text(size = 18), # 設置 Y 軸標籤字體大小
+        axis.title.x = element_text(size = 18), # 設置 X 軸標籤字體大小
+       axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  scale_y_continuous(limits = c(0, 10))
+```
+```{r}
+# Ensure 'platform' is treated as a factor
+data$platform <- as.factor(data$platform)
+
+# Check the levels of platform to ensure correctness
+print(levels(data$platform))
+
+# Conduct the ANOVA
+results <- aov(perceived_competence ~ platform + Error(ID/platform), data = data)
+summary(results)
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "platform")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value
+
+# 生成箱形圖比較不同環境的成績
+p33 <- ggplot(data, aes(x = platform, y = perceived_competence)) +
+  geom_boxplot(aes(fill = platform), alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  scale_x_discrete(labels = c("Block-based" = "BT",
+                            "Code-way" = "CT",
+                            "Text-based" = "TT"))+
+   scale_fill_manual(
+  values = c("Block-based" = "#66c2a5",   # Set2 的綠色
+             "Code-way" = "#fc8d62",      # Set2 的橘色
+             "Text-based" = "#8da0cb"),   # Set2 的藍色
+  labels = c("Block-based" = "BT",
+             "Code-way" = "CT",
+             "Text-based" = "TT"))+
+  labs(title = "(b) Perceived competence Score", fill = "Condition") +
+   # 使用漂亮的填充顏色
+  #scale_fill_brewer(palette = "Set2") +
+  geom_signif(comparisons = list(c("Block-based", "Code-way"), c("Block-based", "Text-based"), c("Code-way", "Text-based")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.2),
+              map_signif_level = TRUE)+
+    # 設置主題和樣式
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(limits = c(0, 10))
+
+```
+
+
+```{r}
+library(ggplot2)
+library(cowplot)
+library(patchwork)
+
+plot_grid(p11, p33, p22, ncol = 3)
+```
+```{r}
+
+(p11 + p33 + p22) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
