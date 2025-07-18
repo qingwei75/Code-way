@@ -1,0 +1,828 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df)#delect NA
+print(df)
+```
+
+
+```{r}
+library(readr)
+df$summary_I <- rowSums(df[, c("I1", "I2")])
+df$summary_E <- rowSums(df[, c("E1", "E2","E3")])
+df$summary_G <- rowSums(df[, c("G1", "G2","G3")])
+
+df$Mean_I <- rowMeans(df[, c("I1", "I2")])
+df$Mean_E <- rowMeans(df[, c("E1", "E2","E3")])
+df$Mean_G <- rowMeans(df[, c("G1", "G2","G3")])
+
+df
+```
+
+```{r}
+
+#Repeat measure
+# 將資料轉換為長表形式，包含 I、E 和 G
+long_df <- pivot_longer(df, 
+                        cols = starts_with("I"),
+                        names_to = "measure_type", 
+                        values_to = "measure_value")
+
+# 進行 ANOVA 比較不同 condition 下的測量結果
+model <- aov(measure_value ~ condition * measure_type, data = long_df)
+
+# 顯示 ANOVA 結果
+summary(model)
+
+```
+```{r}
+# 進行 Tukey 檢定
+tukey_result_condition <- TukeyHSD(model, "condition")
+
+# 將結果轉換為資料框
+tukey_df <- as.data.frame(tukey_result_condition$condition)
+tukey_df$Comparison <- rownames(tukey_df)
+
+# 查看資料框
+print(tukey_df)
+
+```
+
+```{r}
+# 載入 ggplot2 套件
+library(ggplot2)
+
+# 繪製 Tukey 檢定結果的長條圖
+ggplot(tukey_df, aes(x = Comparison, y = diff)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  geom_errorbar(aes(ymin = lwr, ymax = upr), width = 0.2) +
+  theme_minimal() +
+  labs(title = "Tukey HSD Results for Condition", x = "Condition Comparison", y = "Difference in Means") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+```{r}
+model_I <- aov(Mean_I ~ condition, data =df) 
+summary(model_I)
+
+model_E <- aov(Mean_E ~ condition, data =df) 
+summary(model_E)
+
+model_G <- aov(Mean_G ~ condition, data =df) 
+summary(model_G)
+
+```
+
+```{r}
+library(ggplot2)
+
+
+g3_1 <- ggplot(df, aes(x = condition, y = summary_E, fill = condition)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Conditions", x = "Condition", y = "Value")
+print(g3_1)
+
+
+g3_2 <- ggplot(df, aes(x = condition, y = summary_I, fill = condition)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Conditions", x = "Condition", y = "Value")
+print(g3_2)
+
+g3_3 <- ggplot(df, aes(x = condition, y = summary_G, fill = condition)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Conditions", x = "Condition", y = "Value")
+
+print(g3_3)
+
+
+```
+
+```{r}
+# 以 TukeyHSD 為例
+TukeyHSD(model_I)
+TukeyHSD(model_E)
+TukeyHSD(model_G)
+
+```
+
+
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df) # 移除 NA 列
+
+# 執行 ANOVA 分析並提取 Tukey HSD 顯著性結果
+df$Mean_E <- rowMeans(df[, c("E1", "E2","E3")])
+model_E <- aov(Mean_E ~ condition, data =df) 
+tukey_results <- TukeyHSD(model_E)
+
+# 提取 p 值
+p_values <- tukey_results$condition[, "p adj"]
+
+
+df$condition <- factor(df$condition, 
+                       levels = c("B", "C", "T"), 
+                       labels = c("Block->Text", "Codeway->Text", "Text->Text"))
+
+
+library(ggplot2)
+ggplot(df, aes(x = condition, y = Mean_E)) +
+  geom_boxplot() +
+  labs(x = "Condition", y = "Extraneous Cognitive Load") +
+  theme_minimal()+
+  geom_signif(comparisons = list(c("Block->Text", "Codeway->Text"), 
+                                 c("Block->Text", "Text->Text"), 
+                                 c("Codeway->Text", "Text->Text")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.3),
+              map_signif_level = TRUE)+
+  scale_y_continuous(limits = c(0, 10))
+
+```
+
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df)
+
+# 計算平均值
+df$Mean_E <- rowMeans(df[, c("E1", "E2","E3")])
+
+# ANOVA 分析
+model_E <- aov(Mean_E ~ condition, data = df)
+tukey_results <- TukeyHSD(model_E)
+p_values <- tukey_results$condition[, "p adj"]
+
+# 設定因子級別
+df$condition <- factor(df$condition, 
+                      levels = c("B", "C", "T"),  
+                      labels = c("BT", "CT", "TT"))
+
+# 創建改進的圖表
+ggplot(df, aes(x = condition, y = Mean_E, fill = condition)) +
+  # 添加箱形圖
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  
+  # 添加顯著性標記
+  geom_signif(comparisons = list(c("BT", "CT"), 
+                                c("BT", "TT"), 
+                                c("CT", "TT")),
+              annotations = ifelse(p_values < 0.001, "***",
+                                 ifelse(p_values < 0.01, "**", 
+                                        ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.3),
+              map_signif_level = TRUE) +
+  
+  # 設置標題和軸標籤
+  labs(x = "Condition",
+       y = "Extraneous Cognitive Load Score") +
+  
+  # 使用漂亮的填充顏色
+  scale_fill_brewer(palette = "Set2") +
+  
+  # 設置主題和樣式
+  theme_classic() +  # 使用經典主題，移除網格線
+  theme(
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title.x = element_text(margin = margin(t = 10, unit = "pt")),
+    legend.position = "none",
+    panel.grid = element_blank(),  # 移除所有網格線
+    panel.background = element_blank()  # 移除背景
+  ) +
+  
+  # 設置y軸範圍
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))
+```
+
+
+```{r}
+
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df) # 移除 NA 列
+
+# 執行 ANOVA 分析並提取 Tukey HSD 顯著性結果
+df$Mean_I <- rowMeans(df[, c("I1", "I2")])
+model_I <- aov(Mean_I ~ condition, data =df) 
+tukey_results <- TukeyHSD(model_I)
+
+# 提取 p 值
+p_values <- tukey_results$condition[, "p adj"]
+
+df$condition <- factor(df$condition, 
+                       levels = c("B", "C", "T"), 
+                       labels = c("Block->Text", "Codeway->Text", "Text->Text"))
+
+library(ggplot2)
+ggplot(df, aes(x = condition, y = Mean_I)) +
+  geom_boxplot() +
+  labs(title = "Intrinsic Cognitive Load by Condition",
+       x = "Condition", y = "Intrinsic Cognitive Load") +
+  theme_minimal() +
+  geom_signif(comparisons = list(c("Block->Text", "Codeway->Text"), 
+                                 c("Block->Text", "Text->Text"), 
+                                 c("Codeway->Text", "Text->Text")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.3),
+              map_signif_level = TRUE)+
+  scale_y_continuous(limits = c(0, 10))
+```
+
+```{r}
+
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df) # 移除 NA 列
+
+# 執行 ANOVA 分析並提取 Tukey HSD 顯著性結果
+df$Mean_G <- rowMeans(df[, c("G1", "G2","G3")])
+model_G <- aov(Mean_G ~ condition, data =df) 
+tukey_results <- TukeyHSD(model_G)
+
+# 提取 p 值
+p_values <- tukey_results$condition[, "p adj"]
+
+df$condition <- factor(df$condition, 
+                       levels = c("B", "C", "T"), 
+                       labels = c("Block->Text", "Codeway->Text", "Text->Text"))
+
+library(ggplot2)
+ggplot(df, aes(x = condition, y = Mean_G)) +
+  geom_boxplot() +
+  labs(title = "Germane Cognitive Load by Condition",
+       x = "Condition", y = "Germane Cognitive Load") +
+  theme_minimal() +
+  geom_signif(comparisons = list(c("Block->Text", "Codeway->Text"), 
+                                 c("Block->Text", "Text->Text"), 
+                                 c("Codeway->Text", "Text->Text")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.3),
+              map_signif_level = TRUE)+
+  scale_y_continuous(limits = c(0, 10))
+```
+
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df)
+
+# 計算平均值
+df$Mean_G <- rowMeans(df[, c("G1", "G2","G3")])
+
+# ANOVA 分析
+model_G <- aov(Mean_G ~ condition, data = df)
+tukey_results <- TukeyHSD(model_G)
+p_values <- tukey_results$condition[, "p adj"]
+
+# 設定因子級別
+df$condition <- factor(df$condition, 
+                      levels = c("B", "C", "T"),  
+                      labels = c("BT", "CT", "TT"))
+
+# 創建改進的圖表
+ggplot(df, aes(x = condition, y = Mean_G, fill = condition)) +
+  # 添加箱形圖
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  
+  # 添加顯著性標記
+  geom_signif(comparisons = list(c("BT", "CT"), 
+                                c("BT", "TT"), 
+                                c("CT", "TT")),
+              annotations = ifelse(p_values < 0.001, "***",
+                                 ifelse(p_values < 0.01, "**", 
+                                        ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.3),
+              map_signif_level = TRUE) +
+  
+  # 設置標題和軸標籤
+  labs(x = "Condition",
+       y = "Germane Cognitive Load Score") +
+  
+  # 使用漂亮的填充顏色
+  scale_fill_brewer(palette = "Set2") +
+  
+  # 設置主題和樣式
+  theme_classic() +  # 使用經典主題，移除網格線
+  theme(
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title.x = element_text(margin = margin(t = 10, unit = "pt")),
+    legend.position = "none",
+    panel.grid = element_blank(),  # 移除所有網格線
+    panel.background = element_blank()  # 移除背景
+  ) +
+  
+  # 設置y軸範圍
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))
+```
+
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df)
+
+# 計算平均值
+df$Mean_I <- rowMeans(df[, c("I1","I2")])
+
+# ANOVA 分析
+model_I <- aov(Mean_I ~ condition, data = df)
+tukey_results <- TukeyHSD(model_I)
+p_values <- tukey_results$condition[, "p adj"]
+
+# 設定因子級別
+df$condition <- factor(df$condition, 
+                      levels = c("B", "C", "T"),  
+                      labels = c("BT", "CT", "TT"))
+
+# 創建改進的圖表
+ggplot(df, aes(x = condition, y = Mean_I, fill = condition)) +
+  # 添加箱形圖
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  
+  # 添加顯著性標記
+  geom_signif(comparisons = list(c("BT", "CT"), 
+                                c("BT", "TT"), 
+                                c("CT", "TT")),
+              annotations = ifelse(p_values < 0.001, "***",
+                                 ifelse(p_values < 0.01, "**", 
+                                        ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.5, 9.3),
+              map_signif_level = TRUE) +
+  
+  # 設置標題和軸標籤
+  labs(x = "Condition",
+       y = "Intrinsic Cognitive Load Score") +
+  
+  # 使用漂亮的填充顏色
+  scale_fill_brewer(palette = "Set2") +
+  
+  # 設置主題和樣式
+  theme_classic() +  # 使用經典主題，移除網格線
+  theme(
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title.x = element_text(margin = margin(t = 10, unit = "pt")),
+    legend.position = "none",
+    panel.grid = element_blank(),  # 移除所有網格線
+    panel.background = element_blank()  # 移除背景
+  ) +
+  
+  # 設置y軸範圍
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))
+```
+
+```{r}
+# 加載必要的套件
+library(emmeans)
+library(ggplot2)
+library(ggsignif)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+df <- Filter(function(x) !all(is.na(x)), df)
+
+# 轉換 ID 和 condition 列为因子
+df$ID <- factor(df$ID)
+df$condition <- factor(df$condition)
+
+# 計算平均值
+df$Mean_I <- rowMeans(df[, c("I1", "I2")], na.rm = TRUE)
+
+# 使用 aov 進行重複測量的 ANOVA 分析
+model_I <- aov(Mean_I ~ condition + Error(ID/condition), data = df)
+summary(model_I)
+
+# 進行事後分析（估計邊際均值並進行配對比較）
+emm_I <- emmeans(model_I, ~ condition)
+summary(emm_I)
+
+
+```
+
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+library(reshape2)
+library(dplyr)
+library(emmeans)
+library(gridExtra)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+
+# 轉換數據為長格式
+df_long <- melt(df, id.vars = c("ID", "condition"), measure.vars = c("I1", "I2"),
+                variable.name = "Measurement", value.name = "Intrinsic_Load")
+
+# 計算每個受試者每個條件的平均內在認知負荷
+df_long <- df_long %>%
+  group_by(ID, condition) %>%
+  summarise(Mean_I = mean(Intrinsic_Load, na.rm = TRUE))
+
+# 設定因子級別
+df_long$condition <- factor(df_long$condition, 
+                            levels = c("B", "C", "T"),  
+                            labels = c("BT", "CT", "TT"))
+
+# 進行重複測量 ANOVA
+results <- aov(Mean_I ~ condition + Error(ID/condition), data = df_long)
+
+summary(results)
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "condition")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 創建改進的圖表，添加 emmeans 事後分析結果
+p1 <- ggplot(df_long, aes(x = condition, y = Mean_I, fill = condition)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.6, 9.3),
+              map_signif_level = TRUE) +
+  labs(title = "(a) Intrinsic Cognitive Load Score", fill = "Condition") +
+  theme_classic() +
+   theme(plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "top") +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))
+
+```
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+library(reshape2)
+library(dplyr)
+library(emmeans)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+
+# 轉換數據為長格式
+df_long <- melt(df, id.vars = c("ID", "condition"), measure.vars = c("E1", "E2", "E3"),
+                variable.name = "Measurement", value.name = "Extraneous_Load")
+
+# 計算每個受試者每個條件的平均內在認知負荷
+df_long <- df_long %>%
+  group_by(ID, condition) %>%
+  summarise(Mean_E = mean(Extraneous_Load, na.rm = TRUE))
+
+# 設定因子級別
+df_long$condition <- factor(df_long$condition, 
+                            levels = c("B", "C", "T"),  
+                            labels = c("BT", "CT", "TT"))
+
+# 進行重複測量 ANOVA
+results <- aov(Mean_E ~ condition + Error(ID/condition), data = df_long)
+summary(results)
+
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "condition")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 創建改進的圖表，添加 emmeans 事後分析結果
+p2 <- ggplot(df_long, aes(x = condition, y = Mean_E, fill = condition)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+   geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.6, 9.3),
+              map_signif_level = TRUE) +
+  labs(title = "(b) Extraneous Cognitive Load Score", fill = "Condition") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_classic() +
+   theme(plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "top") +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))
+```
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+library(reshape2)
+library(dplyr)
+library(emmeans)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+
+# 轉換數據為長格式
+df_long <- melt(df, id.vars = c("ID", "condition"), measure.vars = c("G1", "G2", "G3"),
+                variable.name = "Measurement", value.name = "Germane_Load")
+
+# 計算每個受試者每個條件的平均內在認知負荷
+df_long <- df_long %>%
+  group_by(ID, condition) %>%
+  summarise(Mean_G = mean(Germane_Load, na.rm = TRUE))
+
+# 設定因子級別
+df_long$condition <- factor(df_long$condition, 
+                            levels = c("B", "C", "T"),  
+                            labels = c("BT", "CT", "TT"))
+
+# 進行重複測量 ANOVA
+results <- aov(Mean_G ~ condition + Error(ID/condition), data = df_long)
+summary(results)
+
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "condition")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 創建改進的圖表，添加 emmeans 事後分析結果
+p3 <- ggplot(df_long, aes(x = condition, y = Mean_G, fill = condition)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+   geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.6, 9.3),
+              map_signif_level = TRUE) +
+  labs(title = "(c) Germane Cognitive Load Score", fill = "Condition") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "top") +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))
+
+
+```
+```{r}
+library(ggplot2)
+library(cowplot)
+library(patchwork)
+
+plot_grid(p1, p2, p3, ncol = 3)
+```
+```{r}
+(p1 + p2 + p3) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+library(reshape2)
+library(dplyr)
+library(emmeans)
+library(gridExtra)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+
+# 轉換數據為長格式
+df_long <- melt(df, id.vars = c("ID", "condition"), measure.vars = c("I1", "I2"),
+                variable.name = "Measurement", value.name = "Intrinsic_Load")
+
+# 計算每個受試者每個條件的平均內在認知負荷
+df_long <- df_long %>%
+  group_by(ID, condition) %>%
+  summarise(Mean_I = mean(Intrinsic_Load, na.rm = TRUE))
+
+# 設定因子級別
+df_long$condition <- factor(df_long$condition, 
+                            levels = c("B", "C", "T"),  
+                            labels = c("BT", "CT", "TT"))
+
+# 進行重複測量 ANOVA
+results <- aov(Mean_I ~ condition + Error(ID/condition), data = df_long)
+
+summary(results)
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "condition")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 創建改進的圖表，添加 emmeans 事後分析結果
+p1 <- ggplot(df_long, aes(x = condition, y = Mean_I, fill = condition)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+  geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.6, 9.3),
+              map_signif_level = TRUE) +
+  labs(y = "Intrinsic Cognitive Load Score", x = "Condition") +
+  theme_classic() +
+   theme(#plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title.y = element_text(size = 14, margin = margin(r = 10)), # Y 軸標籤字體大小，並向右推一些
+    axis.title.x = element_text(size = 14, margin = margin(t = 10)), # X 軸標籤字體大小，並向上推一些
+    axis.text.y = element_text(size = 12), # Y 軸刻度標籤字體大小
+    axis.text.x = element_text(size = 12), # X 軸刻度標籤字體大小
+        legend.position = "none") +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))+
+  scale_fill_manual(values = c("BT" = "#66c2a5", # 淺綠色
+                               "CT" = "#fc8d62", # 淺橘色
+                               "TT" = "#8da0cb")) # 淺藍色
+
+p1
+```
+
+
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+library(reshape2)
+library(dplyr)
+library(emmeans)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+
+# 轉換數據為長格式
+df_long <- melt(df, id.vars = c("ID", "condition"), measure.vars = c("E1", "E2", "E3"),
+                variable.name = "Measurement", value.name = "Extraneous_Load")
+
+# 計算每個受試者每個條件的平均內在認知負荷
+df_long <- df_long %>%
+  group_by(ID, condition) %>%
+  summarise(Mean_E = mean(Extraneous_Load, na.rm = TRUE))
+
+# 設定因子級別
+df_long$condition <- factor(df_long$condition, 
+                            levels = c("B", "C", "T"),  
+                            labels = c("BT", "CT", "TT"))
+
+# 進行重複測量 ANOVA
+results <- aov(Mean_E ~ condition + Error(ID/condition), data = df_long)
+summary(results)
+
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "condition")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 創建改進的圖表，添加 emmeans 事後分析結果
+p2 <- ggplot(df_long, aes(x = condition, y = Mean_E, fill = condition)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+   geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.6, 9.3),
+              map_signif_level = TRUE) +
+  labs(y = "Extraneous Cognitive Load Score", x = "Condition") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_classic() +
+   theme(#plot.title = element_text(hjust = 0.5, size = 14),
+        axis.title.y = element_text(size = 14, margin = margin(r = 10)), # Y 軸標籤字體大小，並向右推一些
+    axis.title.x = element_text(size = 14, margin = margin(t = 10)), # X 軸標籤字體大小，並向上推一些
+    axis.text.y = element_text(size = 12), # Y 軸刻度標籤字體大小
+    axis.text.x = element_text(size = 12), # X 軸刻度標籤字體大小
+        legend.position = "none") +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))+
+  scale_fill_manual(values = c("BT" = "#66c2a5", # 淺綠色
+                               "CT" = "#fc8d62", # 淺橘色
+                               "TT" = "#8da0cb")) # 淺藍色
+p2
+```
+```{r}
+# 加載必要的套件
+library(ggplot2)
+library(ggsignif)
+library(reshape2)
+library(dplyr)
+library(emmeans)
+
+# 讀取資料
+df <- read.csv("ANOVA111.csv")
+
+# 轉換數據為長格式
+df_long <- melt(df, id.vars = c("ID", "condition"), measure.vars = c("G1", "G2", "G3"),
+                variable.name = "Measurement", value.name = "Germane_Load")
+
+# 計算每個受試者每個條件的平均內在認知負荷
+df_long <- df_long %>%
+  group_by(ID, condition) %>%
+  summarise(Mean_G = mean(Germane_Load, na.rm = TRUE))
+
+# 設定因子級別
+df_long$condition <- factor(df_long$condition, 
+                            levels = c("B", "C", "T"),  
+                            labels = c("BT", "CT", "TT"))
+
+# 進行重複測量 ANOVA
+results <- aov(Mean_G ~ condition + Error(ID/condition), data = df_long)
+summary(results)
+
+
+# 使用 emmeans 進行事後測試
+emm <- emmeans(results, specs = "condition")
+pairs <- pairs(emm)
+print(summary(pairs, adjust = "tukey"))
+
+results <- summary(pairs, adjust = "tukey")
+p_values <- results$p.value 
+
+
+# 創建改進的圖表，添加 emmeans 事後分析結果
+p3 <- ggplot(df_long, aes(x = condition, y = Mean_G, fill = condition)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, outlier.shape = 21) +
+   geom_signif(comparisons = list(c("BT", "CT"), c("BT", "TT"), c("CT", "TT")),
+              annotations = ifelse(p_values< 0.001, "***",
+                                  ifelse(p_values < 0.01, "**", 
+                                    ifelse(p_values < 0.05, "*", "ns"))),
+              y_position = c(8, 8.6, 9.3),
+              map_signif_level = TRUE) +
+  labs(y = "Germane Cognitive Load Score", x = "Condition") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_classic() +
+  theme(#plot.title = element_text(hjust = 0.5, size = 10),
+        axis.title.y = element_text(size = 14, margin = margin(r = 10)), # Y 軸標籤字體大小，並向右推一些
+    axis.title.x = element_text(size = 14, margin = margin(t = 10)), # X 軸標籤字體大小，並向上推一些
+    axis.text.y = element_text(size = 12), # Y 軸刻度標籤字體大小
+    axis.text.x = element_text(size = 12), # X 軸刻度標籤字體大小
+        legend.position = "none") +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2))+
+  scale_fill_manual(values = c("BT" = "#66c2a5", # 淺綠色
+                               "CT" = "#fc8d62", # 淺橘色
+                               "TT" = "#8da0cb")) # 淺藍色
+
+p3
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
